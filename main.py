@@ -1,39 +1,40 @@
 import uvicorn
 
-from typing import Literal, List, Union
+from typing import Literal, List, Optional
 # from api.applications import FastAPI
 from fastapi import FastAPI
-from starlette.responses import JSONResponse
-from pydantic import BaseModel, constr
+from starlette.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel, constr, EmailStr
 
 
 ####################################################################################################
 
 
 class People(BaseModel):
-    id: constr(min_length=16, max_length=16)
+    id: constr(pattern=r'^\d{8}$')
     name: str
     age: int
     gender: Literal['m', 'w']
     nationality: str
-    emails: List[str]
-    frend:  Union[List[constr(min_length=16, max_length=16)], None] = None
+    emails: List[EmailStr]
+    friends:  Optional[List[constr(pattern=r'^\d{8}$')]] = None
 
 
 app = FastAPI()
 
 
-@app.post("/people/{people_id}")
+@app.post("/create people", tags=['Control and Viewing'])
 async def create_people(people: People, people_id: int):
     return JSONResponse({"people": people.dict(), "people_id": people_id})
 
-@app.get("/")
-async def homepage():
-    return JSONResponse({'hello': 'world!!!'})
+# @app.get("/")
+# async def homepage():
+#     return 
 
-@app.get("/get_people/{people_id}")
+@app.get("/read people", tags=['Control and Viewing'])
 async def read_people(people_id: int):
     print("people_id", people_id)
+
     return {"people_id": people_id}
 
 
