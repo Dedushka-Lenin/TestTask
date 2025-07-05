@@ -1,0 +1,31 @@
+{
+    "1": {
+        "name": "Lenin",
+        "age": 24,
+        "gender": "m",
+        "nationality": "ru",
+        "emails": [
+            "Lenin@gmail.com"
+        ],
+        "friends": null
+    },
+    "2": {
+        "name": "string",
+        "age": 0,
+        "gender": "m",
+        "nationality": "string",
+        "emails": [
+            "user@example.com"
+        ],
+        "friends": null
+    },
+    "0000000000000003": {
+        "name": "string",
+        "age": 0,
+        "gender": "m",
+        "nationality": "string",
+        "emails": [
+            "user@example.com"
+        ]
+    }
+}
