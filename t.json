@@ -1,0 +1,10 @@
+{
+    "id": 1234567891234,
+    "name": "Ленин",
+    "age": 24,
+    "gender": "m",
+    "nationality": "qweqwe",
+    "emails": [
+        "qweq"
+    ]
+}
