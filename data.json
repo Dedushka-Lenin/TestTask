@@ -1,31 +1,50 @@
 {
-    "1": {
-        "name": "Lenin",
-        "age": 24,
-        "gender": "m",
-        "nationality": "ru",
-        "emails": [
-            "Lenin@gmail.com"
-        ],
-        "friends": null
-    },
-    "2": {
+    "0000000000000001": {
+        "surname": "string",
         "name": "string",
+        "patronymic": "string",
         "age": 0,
         "gender": "m",
         "nationality": "string",
         "emails": [
             "user@example.com"
         ],
-        "friends": null
+        "friends": []
+    },
+    "0000000000000002": {
+        "surname": "string",
+        "name": "string",
+        "patronymic": "string",
+        "age": 0,
+        "gender": "m",
+        "nationality": "string",
+        "emails": [
+            "user@example.com"
+        ],
+        "friends": []
     },
     "0000000000000003": {
+        "surname": "string",
         "name": "string",
+        "patronymic": "string",
         "age": 0,
         "gender": "m",
         "nationality": "string",
         "emails": [
             "user@example.com"
-        ]
+        ],
+        "friends": []
+    },
+    "0000000000000004": {
+        "surname": "string",
+        "name": "string",
+        "patronymic": "string",
+        "age": 0,
+        "gender": "w",
+        "nationality": "string",
+        "emails": [
+            "user@example.com"
+        ],
+        "friends": []
     }
 }
