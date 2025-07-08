@@ -17,8 +17,6 @@ from db.control_db import ControlDB
 ####################################################################################################
 
 
-app = FastAPI()
-
 controlDB = ControlDB()
 
 def signal_handler(sig, frame):
@@ -31,19 +29,20 @@ signal.signal(signal.SIGINT, signal_handler)
 ####################################################################################################
 
 
+app = FastAPI()
 
+# Модель для добавления
 class People(BaseModel):
-    # id: constr(pattern=r'^\d{16}$')
-    surname: str = Field(max_length=20)
-    name: str = Field(max_length=20)
-    patronymic: str = Field(max_length=20)
-    age: int = Field(ge=0, le=150)
-    gender: Literal['m', 'w']
-    nationality: str = Field(max_length=20)
-    emails: List[EmailStr]
+    surname: str = Field(default='', max_length=20)
+    name: str = Field(default='', max_length=20)
+    patronymic: str = Field(default='', max_length=20)
+    age: int = Field(default=0, ge=0, le=150)
+    gender: Literal['m', 'w'] = ''
+    nationality: str = Field(default='', max_length=20)
+    emails: List[EmailStr] = Field(default_factory=list)
 
 # Модель для обновления (может быть частичным)
-class UserUpdate(BaseModel):
+class PeopleUpdate(BaseModel):
     surname: Optional[str]
     name: Optional[str]
     patronymic: Optional[str]
@@ -53,21 +52,63 @@ class UserUpdate(BaseModel):
     emails: Optional[List[EmailStr]]
 
 
-def save_to_json(file_path: str, data_dict: dict):
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data_dict, f, ensure_ascii=False, indent=4)
+####################################################################################################
+# блок для работы с друзьями
 
+@app.put("/control_friends/{friend_1}/{friend_2}/{start_or_end}",                     # endpoint, который упровляет друзьями
+    tags=['Manage Friends'],
+    summary='Контроль друзей')                                                
+async def control_friends(friend_1: str, friend_2: str, start_or_end: Literal['end', 'start']):
 
-
-@app.put("/users/{user_id}"                                                 # endpoint, который изменяет информацию о пользователе.
-         )                                                
-async def update_user(user_id: str, user_update: UserUpdate):
-
+    massege = controlDB.control_friendsDB(friend_1, friend_2, start_or_end)
     
-    return {'success':True, 'massege': 'Пользователь успешно изменён'}
+    return massege
 
 
-@app.post(                                                                   # endpoint, который принимает информацию о новом человеке и создает запись в БД.  (Пока не в БД)
+@app.put("/control_friends/{id}",                     # endpoint, который выводит список друзей
+    tags=['Manage Friends'],
+    summary='Список друзей')                                                
+async def list_friends(id: str):
+
+    massege = controlDB.list_friendsDB(id)
+    
+    return massege
+
+
+####################################################################################################
+# блок для работы с пользователями
+
+@app.put("/delete_people/{user_id}",                                                 # endpoint, который удаляет пользователя
+    tags=['Adding and Сhanging'],
+    summary='Удаление пользователя')                                                
+async def delete_people(id: str):
+
+    massege = controlDB.delete_peopleDB(id)
+
+    return massege
+
+
+@app.put("/сhange_people/{user_id}",                                                 # endpoint, который изменяет информацию о пользователе
+    tags=['Adding and Сhanging'],
+    summary='Изменение пользователя')                                                
+async def update_people(id: str, update_people: PeopleUpdate):
+
+    massege = controlDB.check_availability(id)
+    if not massege['exists']:
+        return massege['massege']
+
+    controlDB.update_peopleDB(id, 'surname', update_people.surname)
+    controlDB.update_peopleDB(id, 'name', update_people.name)
+    controlDB.update_peopleDB(id, 'patronymic', update_people.patronymic)
+    controlDB.update_peopleDB(id, 'age', update_people.age)
+    controlDB.update_peopleDB(id, 'gender', update_people.gender)
+    controlDB.update_peopleDB(id, 'nationality', update_people.nationality)
+    controlDB.update_peopleDB(id, 'emails', json.dumps(update_people.emails))
+    
+    return {'success':True, 'massege': 'Пользователь успешно инзменен'}
+
+
+@app.post(                                                                   # endpoint, который принимает информацию о новом человеке и создает запись в БД
     "/create_people",
     tags=['Adding and Сhanging'],
     summary='Создать пользователя'
@@ -86,6 +127,9 @@ async def create_people(people: People):
 
     return {'success':True, 'massege': 'Пользователь успешно добавлен'}
 
+
+####################################################################################################
+# болок для вывода информации о пользователях
 
 @app.get(                                                                   # endpoint, который принимает Фамилию и выводит информацию о пользователе
     "/get_people{surname}",
@@ -110,8 +154,6 @@ async def read_people():
 
 
 ####################################################################################################
-
-
 
 
 if __name__ == "__main__":
