@@ -6,12 +6,9 @@ import sys
 from typing import Literal, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse
-from pydantic import BaseModel, EmailStr, constr, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from db.control_db import ControlDB
-
-
-#  Создать возможность связывать людей в дружеские отношения. Дать возможность вывести всех друзей пользователя.
 
 
 ####################################################################################################
@@ -36,7 +33,7 @@ class People(BaseModel):
     surname: str = Field(default='', max_length=20)
     name: str = Field(default='', max_length=20)
     patronymic: str = Field(default='', max_length=20)
-    age: int = Field(default=0, ge=0, le=150)
+    age: int = Field(default=1, ge=0, le=150)
     gender: Literal['m', 'w'] = ''
     nationality: str = Field(default='', max_length=20)
     emails: List[EmailStr] = Field(default_factory=list)
@@ -58,25 +55,98 @@ class PeopleUpdate(BaseModel):
 @app.put("/control_friends/{friend_1}/{friend_2}/{start_or_end}",                       # endpoint, который упровляет друзьями
     tags=['Manage Friends'],
     summary='Контроль друзей')                                                
-async def control_friends(friend_1: str, friend_2: str, start_or_end: Literal['end', 'start']):
+async def control_friends(friend_1: int, friend_2: int, start_or_end: Literal['end', 'start']):
+
+    success = controlDB.check_availability_record(table_name='People', field_name='id', value=friend_1)
+    if not success['exists']:
+        return success['message']
+    
+    success = controlDB.check_availability_record(table_name='People', field_name='id', value=friend_2)
+    if not success['exists']:
+        return success['message']
 
 
+    f1 = controlDB.get_DB(table_name='Friends', field_name='id_friend_1', value=friend_1)
 
-    pass
+    f2 = controlDB.get_DB(table_name='Friends', field_name='id_friend_2', value=friend_1)
+
+    for d in f2: 
+        d['id_friend_1'], d['id_friend_2'] = d['id_friend_2'], d['id_friend_1']
+
+    list_friend_1 = f1 + f2
+
+
+    match start_or_end:
+        case 'start':
+
+            exists = any(d.get('id_friend_2') == friend_2 for d in list_friend_1)
+
+            if exists:
+                return {'success':True, 'message': 'Пользователи уже являются друзьями'}
+
+            else:
+                controlDB.insert_into_table(
+                    table_name='Friends', 
+                    data_dict={
+                        'id_friend_1' : friend_1,
+                        'id_friend_2' : friend_2
+                    }
+                )
+
+                return {'success':True, 'message': 'Пользователи успешно подружились'}
+
+        case 'end':
+
+            matching_dict = next(
+                (d for d in list_friend_1 if d.get('id_friend_2') == friend_2),
+                None
+            )
+
+            if matching_dict:
+                
+                controlDB.delete_DB(table_name='Friends', field_name='id', value=matching_dict['id'])
+                
+                return {'success':True, 'message': 'Пользователи успешно перестали подружить'}
+
+            else:
+            
+                return {'success':True, 'message': 'Пользователи не являются друзьями'}
 
 
 @app.put("/control_friends/{id}",                                                       # endpoint, который выводит список друзей
     tags=['Manage Friends'],
     summary='Список друзей')                                                
-async def list_friends(id: str):
+async def list_friends(id: int):
 
-    massege = []
+    success = controlDB.check_availability_record(table_name='People', field_name='id', value=id)
+    if not success['exists']:
+        return success['message']
 
-    massege.append(controlDB.get_DB(table_name='Friends', field_name='friend_1', value=id))
-    massege.append(controlDB.get_DB(table_name='Friends', field_name='friend_2', value=id))
+    f1 = controlDB.get_DB(table_name='Friends', field_name='id_friend_1', value=id)
 
-    return massege
+    f2 = controlDB.get_DB(table_name='Friends', field_name='id_friend_2', value=id)
 
+    for d in f2: 
+        d['id_friend_1'], d['id_friend_2'] = d['id_friend_2'], d['id_friend_1']
+
+    list_friend = f1 + f2
+
+    list_friend = [d['id_friend_2'] for d in list_friend]
+
+    message = []
+
+    for f_id in list_friend:
+
+        frend = controlDB.get_DB(table_name='People', field_name='id', value=f_id)[0]
+
+        del frend['id']
+        del frend['age']
+        del frend['gender']
+        del frend['nationality']
+
+        message.append(frend)
+
+    return message
 
 ####################################################################################################
 # блок для работы с пользователями
@@ -84,14 +154,14 @@ async def list_friends(id: str):
 @app.put("/delete_people/{user_id}",                                                    # endpoint, который удаляет пользователя
     tags=['Adding and Сhanging'],
     summary='Удаление пользователя')                                                
-async def delete_people(id: str):
+async def delete_people(id: int):
 
-    massege = controlDB.delete_DB(table_name='People', field_name='id', value=id)
-    massege = controlDB.delete_DB(table_name='Friends', field_name='friend_1', value=id)
-    massege = controlDB.delete_DB(table_name='Friends', field_name='friend_2', value=id)
-    massege = controlDB.delete_DB(table_name='Emails', field_name='id_people', value=id)
+    message = controlDB.delete_DB(table_name='People', field_name='id', value=id)
+    message = controlDB.delete_DB(table_name='Friends', field_name='id_friend_1', value=id)
+    message = controlDB.delete_DB(table_name='Friends', field_name='id_friend_2', value=id)
+    message = controlDB.delete_DB(table_name='Emails', field_name='id_people', value=id)
 
-    return massege
+    return message
 
 
 @app.put("/сhange_people/{user_id}",                                                    # endpoint, который изменяет информацию о пользователе
@@ -102,7 +172,7 @@ async def update_people(id: str, update_people: PeopleUpdate):
     # Проверка существования записи
     success = controlDB.check_availability_record(table_name='People', field_name='id', value=id)
     if not success['exists']:
-        return success['massege']
+        return success['message']
 
     if update_people.emails is not None:
 
@@ -124,7 +194,7 @@ async def update_people(id: str, update_people: PeopleUpdate):
     controlDB.update_BD(table_name='People', id=id, field_name='gender', value=update_people.gender)
     controlDB.update_BD(table_name='People', id=id, field_name='nationality', value=update_people.nationality)
     
-    return {'success':True, 'massege': 'Пользователь успешно инзменен'}
+    return {'success':True, 'message': 'Пользователь успешно инзменен'}
 
 
 @app.post(                                                                              # endpoint, который принимает информацию о новом человеке и создает запись в БД
@@ -134,12 +204,34 @@ async def update_people(id: str, update_people: PeopleUpdate):
 )
 async def create_people(people: People):
 
-    controlDB.insert_into_table(
+    data_dict = {
+        'surname' : people.surname,
+        'name' : people.name,
+        'patronymic' : people.patronymic,
+        'age' : people.age,
+        'gender' : people.gender,
+        'nationality' : people.nationality
+    }
+
+
+
+    id = controlDB.insert_into_table(
                 table_name='People', 
-                data_dict=people
+                data_dict=data_dict
+            )
+    
+
+    
+    for elm in people.emails:
+        controlDB.insert_into_table(
+                table_name='Emails', 
+                data_dict={
+                    'id_people' : id,
+                    'email' : elm
+                }
             )
 
-    return {'success':True, 'massege': 'Пользователь успешно добавлен'}
+    return {'success':True, 'message': 'Пользователь успешно добавлен'}
 
 
 ####################################################################################################
@@ -153,6 +245,18 @@ async def create_people(people: People):
 async def get_people(surname: str):
 
     message = controlDB.get_DB(table_name='People', field_name='surname', value=surname)
+
+    for elm in message:
+
+        emails = controlDB.get_DB(table_name='Emails', field_name='id_people', value=elm['id'])
+
+        email_list = []
+
+        for email in emails:
+
+            email_list.append(email['email'])
+
+        elm['email'] = email_list
             
     return JSONResponse(message)
 
@@ -169,11 +273,13 @@ async def read_people():
     name_list = controlDB.read_DB(table_name='People', field_name='name')
     patronymic_list = controlDB.read_DB(table_name='People', field_name='patronymic')
 
+    print(id_list)
+
     keys = ['id', 'surname', 'name', 'patronymic']
 
     message = [dict(zip(keys, values)) for values in zip(id_list, surname_list, name_list, patronymic_list)]
 
-    return PlainTextResponse(message)
+    return message
 
 
 ####################################################################################################
