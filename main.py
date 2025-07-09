@@ -1,11 +1,11 @@
 import uvicorn
-import json
 import signal
 import sys
+import requests
 
 from typing import Literal, List, Optional
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 
 from db.control_db import ControlDB
@@ -33,9 +33,6 @@ class People(BaseModel):
     surname: str = Field(default='', max_length=20)
     name: str = Field(default='', max_length=20)
     patronymic: str = Field(default='', max_length=20)
-    age: int = Field(default=1, ge=0, le=150)
-    gender: Literal['m', 'w'] = ''
-    nationality: str = Field(default='', max_length=20)
     emails: List[EmailStr] = Field(default_factory=list)
 
 # Модель для обновления (может быть частичным)
@@ -44,9 +41,37 @@ class PeopleUpdate(BaseModel):
     name: Optional[str] = Field(default_factory=None)
     patronymic: Optional[str] = Field(default_factory=None)
     age: Optional[int] = Field(default_factory=None)
-    gender: Optional[Literal['m', 'w']] = Field(default_factory=None)
+    gender: Optional[Literal['male', 'female']] = Field(default_factory=None)
     nationality: Optional[str] = Field(default_factory=None)
     emails: Optional[List[EmailStr]] = Field(default_factory=None)
+
+
+####################################################################################################
+
+
+def get_age(name):
+    response = requests.get(f"https://api.agify.io?name={name}")
+    if response.status_code == 200:
+        data = response.json()
+        return data.get('age')
+    return None
+
+def get_gender(name):
+    response = requests.get(f"https://api.genderize.io?name={name}")
+    if response.status_code == 200:
+        data = response.json()
+        return data.get('gender')
+    return None
+
+def get_nationality(name):
+    response = requests.get(f"https://api.nationalize.io?name={name}")
+    if response.status_code == 200:
+        data = response.json()
+        country_data = data.get('country', [])
+        if country_data:
+            country_data.sort(key=lambda x: x['probability'], reverse=True)
+            return country_data[0]['country_id']
+    return None
 
 
 ####################################################################################################
@@ -113,7 +138,7 @@ async def control_friends(friend_1: int, friend_2: int, start_or_end: Literal['e
                 return {'success':True, 'message': 'Пользователи не являются друзьями'}
 
 
-@app.put("/control_friends/{id}",                                                       # endpoint, который выводит список друзей
+@app.get("/control_friends/{id}",                                                       # endpoint, который выводит список друзей
     tags=['Manage Friends'],
     summary='Список друзей')                                                
 async def list_friends(id: int):
@@ -151,7 +176,7 @@ async def list_friends(id: int):
 ####################################################################################################
 # блок для работы с пользователями
 
-@app.put("/delete_people/{user_id}",                                                    # endpoint, который удаляет пользователя
+@app.delete("/delete_people/{user_id}",                                                    # endpoint, который удаляет пользователя
     tags=['Adding and Сhanging'],
     summary='Удаление пользователя')                                                
 async def delete_people(id: int):
@@ -208,19 +233,15 @@ async def create_people(people: People):
         'surname' : people.surname,
         'name' : people.name,
         'patronymic' : people.patronymic,
-        'age' : people.age,
-        'gender' : people.gender,
-        'nationality' : people.nationality
+        'age' : get_age(people.name),
+        'gender' : get_gender(people.name),
+        'nationality' : get_nationality(people.name)
     }
-
-
 
     id = controlDB.insert_into_table(
                 table_name='People', 
                 data_dict=data_dict
             )
-    
-
     
     for elm in people.emails:
         controlDB.insert_into_table(
@@ -272,8 +293,6 @@ async def read_people():
     surname_list = controlDB.read_DB(table_name='People', field_name='surname')
     name_list = controlDB.read_DB(table_name='People', field_name='name')
     patronymic_list = controlDB.read_DB(table_name='People', field_name='patronymic')
-
-    print(id_list)
 
     keys = ['id', 'surname', 'name', 'patronymic']
 

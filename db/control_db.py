@@ -15,7 +15,7 @@ class ControlDB():
                 name TEXT NOT NULL, -- Имя
                 patronymic TEXT NOT NULL, -- Отчество
                 age INTEGER NOT NULL CHECK (age > 0) CHECK (age < 151), -- Возраст
-                gender TEXT NOT NULL CHECK (gender IN ('w', 'm')), -- Пол
+                gender TEXT NOT NULL CHECK (gender IN ('male', 'female')), -- Пол
                 nationality TEXT NOT NULL -- Национальность
             );
         ''')
